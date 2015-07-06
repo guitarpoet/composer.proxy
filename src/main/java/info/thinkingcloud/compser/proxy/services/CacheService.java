@@ -1,18 +1,13 @@
 package info.thinkingcloud.compser.proxy.services;
 
-import javax.annotation.PostConstruct;
+import java.util.List;
 
-import net.sf.ehcache.Cache;
-import net.sf.ehcache.CacheManager;
-import net.sf.ehcache.config.CacheConfiguration;
-import net.sf.ehcache.config.Configuration;
-import net.sf.ehcache.config.DiskStoreConfiguration;
-import net.sf.ehcache.config.MemoryUnit;
-import net.sf.ehcache.config.PersistenceConfiguration;
-import net.sf.ehcache.config.PersistenceConfiguration.Strategy;
+import info.thinkingcloud.compser.proxy.entities.CacheItem;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.orm.hibernate3.HibernateTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * The caching service that will save the files into the cache.
@@ -22,45 +17,34 @@ import org.springframework.stereotype.Service;
 @Service
 public class CacheService {
 
-	private static final String FILES = "files";
-
-	private static final String PACKAGES = "packages";
-
-	private CacheManager manager;
-
 	@Autowired
-	private ConfigService config;
+	private HibernateTemplate template;
 
-	@PostConstruct
-	public void init() {
-		Configuration cacheManagerConfig = new Configuration()
-				.diskStore(new DiskStoreConfiguration().path(config
-						.getConfig("cache.dir")));
-		CacheConfiguration packages = new CacheConfiguration()
-				.name(PACKAGES)
-				.maxBytesLocalHeap(16, MemoryUnit.MEGABYTES)
-				.persistence(
-						new PersistenceConfiguration()
-								.strategy(Strategy.LOCALTEMPSWAP));
+	@Transactional
+	public void put(String cache, String key, String value) {
+		CacheItem item = getItem(cache, key);
+		if (item != null) {
+			item.setValue(value);
+			template.update(item);
+		} else {
+			item = new CacheItem(cache, key, value);
+			template.save(item);
+		}
 
-		CacheConfiguration files = new CacheConfiguration()
-				.name(FILES)
-				.maxBytesLocalHeap(16, MemoryUnit.MEGABYTES)
-				.persistence(
-						new PersistenceConfiguration()
-								.strategy(Strategy.LOCALTEMPSWAP));
-
-		cacheManagerConfig.addCache(packages);
-		cacheManagerConfig.addCache(files);
-
-		manager = new CacheManager(cacheManagerConfig);
 	}
 
-	public Cache getPackagesCache() {
-		return manager.getCache(PACKAGES);
+	protected CacheItem getItem(String cache, String key) {
+		List<?> list = template.find(
+				"from CacheItem where cache = ? and name = ?", cache, key);
+		if (list.isEmpty())
+			return null;
+		return (CacheItem) list.get(0);
 	}
 
-	public Cache getFilesCache() {
-		return manager.getCache(FILES);
+	public String get(String cache, String key) {
+		CacheItem item = getItem(cache, key);
+		if (item != null)
+			return item.getValue();
+		return null;
 	}
 }

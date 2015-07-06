@@ -28,6 +28,8 @@ public class HttpService {
 
 	private HttpClient client;
 
+	public static final String NOT_FOUND = "NOT_FOUND";
+
 	@PostConstruct
 	public void init() {
 		client = HttpClientBuilder
@@ -66,6 +68,6 @@ public class HttpService {
 		} catch (IOException exc) {
 			logger.error("Error in getting response", exc);
 		}
-		return null;
+		return NOT_FOUND;
 	}
 }

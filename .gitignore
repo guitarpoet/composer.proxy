@@ -1,2 +1,4 @@
 /target
 /.settings/
+/composer.proxy.db/
+*.log
